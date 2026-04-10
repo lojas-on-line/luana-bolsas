@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loja de Bolsas</title>
+
+<style>
+body { margin:0; font-family:Arial; background:#f5f5f5; }
+
+/* HEADER */
+header {
+  background: linear-gradient(45deg,#0d6efd,#00c6ff);
+  color:#fff;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+}
+
+/* VITRINE */
+.vitrine {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  padding:10px;
+}
+
+.produto {
+  background:#fff;
+  border-radius:10px;
+  padding:10px;
+  text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+.produto img {
+  width:100%;
+  height:150px;
+  object-fit:contain;
+  cursor:pointer;
+}
+
+.nome { font-weight:bold; margin:5px 0; }
+.preco { color:green; font-weight:bold; }
+.atacado { color:#ff6600; font-size:14px; }
+
+/* INPUTS */
+select, input {
+  width:100%;
+  margin-top:5px;
+  padding:5px;
+  border-radius:5px;
+  border:1px solid #ccc;
+}
+
+/* BOTÃO */
+button {
+  margin-top:5px;
+  padding:8px;
+  width:100%;
+  border:none;
+  border-radius:5px;
+  background:#0d6efd;
+  color:white;
+  cursor:pointer;
+}
+
+/* CARRINHO */
+#carrinho {
+  position:fixed;
+  right:-100%;
+  top:0;
+  width:320px;
+  height:100%;
+  background:#fff;
+  transition:0.4s;
+  padding:10px;
+  overflow:auto;
+  z-index:1000;
+}
+
+#carrinho.active { right:0; }
+
+.carrinho-btn {
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:red;
+  color:#fff;
+  padding:15px;
+  border-radius:50%;
+}
+
+/* ITEM */
+.item-carrinho {
+  display:flex;
+  gap:10px;
+  margin-bottom:10px;
+  align-items:center;
+}
+
+.item-carrinho img {
+  width:60px;
+  height:60px;
+  object-fit:cover;
+}
+
+.qtd-btn {
+  padding:3px 8px;
+  background:#ddd;
+  cursor:pointer;
+  border-radius:5px;
+}
+
+/* BADGE ATACADO */
+.badge {
+  background: orange;
+  color:#fff;
+  padding:5px;
+  border-radius:5px;
+  text-align:center;
+  margin-bottom:10px;
+}
+
+/* MODAL FULL */
+#modal-img {
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:#000;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  opacity:0;
+  visibility:hidden;
+  transition:0.3s;
+  z-index:9999;
+}
+
+#modal-img.active {
+  opacity:1;
+  visibility:visible;
+}
+
+#modal-img img {
+  max-width:100%;
+  max-height:90%;
+  object-fit:contain;
+}
+
+/* TOPO */
+.top-bar {
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  padding:10px;
+  background:rgba(0,0,0,0.5);
+}
+
+.top-bar button {
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<header>👜 Luana  Bolsas</header>
+
+<div class="vitrine" id="vitrine"></div>
+
+<!-- CARRINHO -->
+<div id="carrinho">
+  <h3>Carrinho</h3>
+  <div id="badge"></div>
+  <div id="itens"></div>
+  <h3 id="total"></h3>
+  <button onclick="finalizar()">Finalizar</button>
+  <button onclick="fecharCarrinho()">Fechar</button>
+</div>
+
+<div class="carrinho-btn" onclick="abrirCarrinho()">🛒</div>
+
+<!-- MODAL FULL -->
+<div id="modal-img" onclick="fecharImagem(event)">
+  <div class="top-bar">
+    <button onclick="fecharImagem()">⬅ Voltar</button>
+  </div>
+  <img id="img-grande">
+</div>
+
+<script>
+let produtos = [
+  {nome:"Bolsa Luxo ml26082#", preco:120, atacado:90, cores:["black","brown","red","green","blue","white","wine"], img:"https://i.ibb.co/Y4q3mqXn/Whats-App-Image-2026-04-10-at-05-59-55.jpg"},
+  {nome:"Bolsa Feminina ml26027#", preco:110, atacado:85, cores:["marrom/preta",], img:"https://i.ibb.co/bjd3kZWd/Whats-App-Image-2026-04-10-at-06-00-14.jpg"},
+  {nome:"Bolsa Couro 30934", preco:150, atacado:110, cores:["Marrom","black","branca","vinho",], img:"https://i.ibb.co/8nZ94Kkh/Whats-App-Image-2026-04-10-at-05-59-55-1.jpg"},
+  {nome:"Bolsa Premium", preco:130, atacado:95, cores:["Preto","Bege"], img:"https://i.imgur.com/4.jpg"}
+];
+
+let carrinho=[];
+
+/* VITRINE */
+function render(){
+  let html="";
+  produtos.forEach((p,i)=>{
+
+    let coresHTML = p.cores.map(c=>`<option>${c}</option>`).join("");
+
+    html+=`
+    <div class="produto">
+      <img src="${p.img}" onclick="abrirImagem('${p.img}')">
+      <div class="nome">${p.nome}</div>
+      <div class="preco">R$ ${p.preco}</div>
+      <div class="atacado">Atacado: R$ ${p.atacado}</div>
+
+      <select id="cor-${i}">
+        ${coresHTML}
+      </select>
+
+      <input type="number" id="qtd-${i}" value="1" min="1">
+
+      <button onclick="add(${i})">Adicionar</button>
+    </div>`;
+  });
+
+  document.getElementById("vitrine").innerHTML=html;
+}
+
+/* ADD */
+function add(i){
+  let cor=document.getElementById(`cor-${i}`).value;
+  let qtd=parseInt(document.getElementById(`qtd-${i}`).value);
+
+  let item=carrinho.find(p=>p.nome===produtos[i].nome && p.cor===cor);
+
+  if(item){ item.qtd+=qtd; }
+  else{ carrinho.push({...produtos[i], qtd, cor}); }
+
+  renderCarrinho();
+}
+
+/* ATACADO */
+function totalItens(){
+  return carrinho.reduce((t,p)=>t+p.qtd,0);
+}
+
+function isAtacado(){
+  return totalItens()>=10;
+}
+
+/* CARRINHO */
+function alterarQtd(i,t){
+  if(t==="mais") carrinho[i].qtd++;
+  else{
+    carrinho[i].qtd--;
+    if(carrinho[i].qtd<=0) carrinho.splice(i,1);
+  }
+  renderCarrinho();
+}
+
+function renderCarrinho(){
+  let html="";
+  let total=0;
+  let atacado=isAtacado();
+
+  document.getElementById("badge").innerHTML =
+    atacado ? '<div class="badge">🔥 ATACADO ATIVADO</div>' : '';
+
+  carrinho.forEach((p,i)=>{
+    let preco=atacado?p.atacado:p.preco;
+    total+=preco*p.qtd;
+
+    html+=`
+    <div class="item-carrinho">
+      <img src="${p.img}">
+      <div style="flex:1">
+        <b>${p.nome}</b><br>
+        Cor: ${p.cor}<br>
+        R$ ${preco}
+      </div>
+
+      <div>
+        <span class="qtd-btn" onclick="alterarQtd(${i},'menos')">-</span>
+        ${p.qtd}
+        <span class="qtd-btn" onclick="alterarQtd(${i},'mais')">+</span>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById("itens").innerHTML=html;
+  document.getElementById("total").innerText="Total: R$ "+total;
+}
+
+/* CARRINHO UI */
+function abrirCarrinho(){ document.getElementById("carrinho").classList.add("active"); }
+function fecharCarrinho(){ document.getElementById("carrinho").classList.remove("active"); }
+
+/* IMAGEM FULL */
+function abrirImagem(src){
+  document.getElementById("modal-img").classList.add("active");
+  document.getElementById("img-grande").src=src;
+}
+
+function fecharImagem(e){
+  if(!e || e.target.id==="modal-img"){
+    document.getElementById("modal-img").classList.remove("active");
+  }
+}
+
+/* WHATSAPP */
+function finalizar(){
+  let atacado=isAtacado();
+  let msg="🛍️ Pedido:%0A%0A";
+
+  carrinho.forEach(p=>{
+    let preco=atacado?p.atacado:p.preco;
+
+    msg+=`${p.nome}%0A`;
+    msg+=`Cor: ${p.cor}%0A`;
+    msg+=`Qtd: ${p.qtd}%0A`;
+    msg+=`R$ ${preco}%0A%0A`;
+  });
+
+  msg+=`Tipo: ${atacado?"ATACADO":"VAREJO"}`;
+
+  window.open(`https://wa.me/55959043848?text=${msg}`);
+}
+
+render();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+<body>
+
+<div class="card">
+
+    <!-- MAPA -->
+    <iframe 
+        src="https://www.google.com/maps?q=-23.55052,-46.633308&z=14&output=embed">
+    </iframe>
+
+    <!-- INFO -->
+    <div class="content">
+        <h2>Minha Loja</h2>
+        <p>São Paulo - SP</p>
+
+        <a class="btn" 
+           href="https://www.google.com/maps?q=-23.55052,-46.633308" 
+           target="_blank">
+           📍 Abrir no Maps
+        </a>
+    </div>
+
+</div>
+
+</body>
+</html>
